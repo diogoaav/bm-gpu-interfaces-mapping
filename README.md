@@ -345,3 +345,35 @@ This repository includes real output examples from both tools:
   - Bandwidth analysis and connectivity status
 
 These examples demonstrate the tools' output format and help you understand what to expect when running them on your own cluster.
+
+## 🔗 Understanding GPU-to-NIC Mapping
+
+### **Important: Optimal Paths vs Communication Flexibility**
+
+The GPU-to-NIC mappings shown by these tools represent **optimal network paths based on hardware topology**, not communication restrictions. Here's what this means for your applications:
+
+**✅ What the mapping shows:**
+- **Optimal performance paths**: Each GPU has preferred RDMA interfaces based on PCIe topology (PIX connections)
+- **NUMA affinity**: GPUs and NICs on the same NUMA node provide best latency and bandwidth
+- **Load distribution recommendations**: Spread network traffic across multiple interfaces for maximum throughput
+
+**🌐 Actual communication capability:**
+- **Any GPU can communicate with any other GPU** across nodes through the RDMA network
+- **All RDMA interfaces are shared resources** that any GPU can utilize
+- **NCCL/MPI libraries handle routing** and automatically select the best available network paths
+- **Multiple interfaces can be used simultaneously** for higher aggregate bandwidth
+
+### **Practical Example:**
+
+```
+Mapping shows: GPU0 → mlx5_0 (optimal) ↔ GPU0 → mlx5_0 (optimal)
+Reality: GPU0 on Node1 can send data to ANY GPU on Node2 through ANY available RDMA interface
+```
+
+**Use the mappings to:**
+1. **Configure NCCL_IB_HCA** with optimal interfaces for each GPU
+2. **Balance network load** by distributing traffic across different interfaces  
+3. **Achieve best performance** by following NUMA-aware GPU-NIC pairings
+4. **Plan capacity** by understanding which GPUs share network resources
+
+The tools help you optimize network performance, but your distributed applications have full flexibility to communicate between any GPUs across the cluster.
