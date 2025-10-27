@@ -1,0 +1,61 @@
+========================================================================================================================
+INTER-NODE GPU-to-GPU COMMUNICATION MAPPING
+========================================================================================================================
+
+🌐 CLUSTER OVERVIEW:
+------------------------------------------------------------
+Local Node:  am4g2r31bm1
+Remote Node: am4g2r32bm1
+Network:     10.45.170.0/24
+Local IP:    10.45.170.76/24
+Remote IP:   10.45.170.79/24
+
+📊 INTER-NODE GPU COMMUNICATION PATHS (E/W):
+------------------------------------------------------------------------------------------------------------------------
+Local GPU  Local NIC  Local mlx5   Local Interface    Status   >>>   Remote GPU   Remote NIC   Remote mlx5    Remote Interface   Status
+------------------------------------------------------------------------------------------------------------------------
+GPU0       NIC0       mlx5_0       enp26s0np0         ✅ Up     >>>>> GPU0         NIC0         mlx5_0         enp26s0np0         ✅ Up
+GPU1       NIC3       mlx5_3       enp60s0np0         ✅ Up     >>>>> GPU1         NIC3         mlx5_3         enp60s0np0         ✅ Up
+GPU2       NIC4       mlx5_4       enp77s0np0         ✅ Up     >>>>> GPU2         NIC4         mlx5_4         enp77s0np0         ✅ Up
+GPU3       NIC5       mlx5_5       enp94s0np0         ❌ DOWN   >>>>> GPU3         NIC5         mlx5_5         enp94s0np0         ✅ Up
+GPU4       NIC6       mlx5_6       enp156s0np0        ✅ Up     >>>>> GPU4         NIC6         mlx5_6         enp156s0np0        ✅ Up
+GPU5       NIC9       mlx5_9       enp188s0np0        ✅ Up     >>>>> GPU5         NIC9         mlx5_9         enp188s0np0        ✅ Up
+GPU6       NIC10      mlx5_10      enp204s0np0        ✅ Up     >>>>> GPU6         NIC10        mlx5_10        enp204s0np0        ✅ Up
+GPU7       NIC11      mlx5_11      enp220s0np0        ✅ Up     >>>>> GPU7         NIC11        mlx5_11        enp220s0np0        ✅ Up
+
+🚀 DISTRIBUTED TRAINING CONFIGURATION:
+------------------------------------------------------------
+# Multi-node training with 7 GPU pairs
+# Node 1 (am4g2r31bm1):
+export CUDA_VISIBLE_DEVICES=0,1,2,4,5,6,7
+export NCCL_IB_HCA=mlx5_0,mlx5_3,mlx5_4,mlx5_6,mlx5_9,mlx5_10,mlx5_11
+export NCCL_SOCKET_IFNAME=bond0
+export MASTER_ADDR=10.45.170.76
+export MASTER_PORT=29500
+export WORLD_SIZE=16  # Total GPUs across both nodes
+export RANK=0
+
+# Node 2 (am4g2r32bm1):
+export CUDA_VISIBLE_DEVICES=0,1,2,4,5,6,7
+export NCCL_IB_HCA=mlx5_0,mlx5_3,mlx5_4,mlx5_6,mlx5_9,mlx5_10,mlx5_11
+export NCCL_SOCKET_IFNAME=bond0
+export MASTER_ADDR=10.45.170.76
+export MASTER_PORT=29500
+export WORLD_SIZE=16
+export RANK=8
+
+💡 COMMUNICATION PATTERN ANALYSIS:
+------------------------------------------------------------
+✅ Working GPU pairs: 7/8
+✅ Total E/W bandwidth: 2800G (7 × 400G)
+✅ RDMA Protocol: RoCE v2 (InfiniBand over Ethernet)
+✅ Network Topology: Direct E/W connections for GPU-GPU communication
+⚠️  Issues detected: GPU3 (DOWN/Up)
+
+🔧 TESTING INTER-NODE CONNECTIVITY:
+------------------------------------------------------------
+# Test RDMA connectivity between nodes:
+# On am4g2r31bm1:
+ibv_rc_pingpong -d mlx5_0 -g 0
+# On am4g2r32bm1:
+ibv_rc_pingpong -d mlx5_0 -g 0 10.45.170.76

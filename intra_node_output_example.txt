@@ -1,0 +1,80 @@
+====================================================================================================
+COMPLETE GPU to RoCE Interface Mapping - N/S vs E/W Classification
+====================================================================================================
+
+🌐 INTERFACE CLASSIFICATION:
+------------------------------------------------------------
+📡 N/S (North/South) - Front-end interfaces:
+   • bond0 = 4x100G bonded = 400G total aggregate
+   • Used for external/client traffic
+   • Members: mlx5_1, mlx5_2, mlx5_7, mlx5_8
+
+🔄 E/W (East/West) - Backend/Inter-node interfaces:
+   • Individual 400G RoCE interfaces
+   • Used for GPU-to-GPU communication between nodes
+   • Members: mlx5_0, mlx5_3, mlx5_4, mlx5_5, mlx5_6, mlx5_9, mlx5_10, mlx5_11
+
+📊 COMPLETE NIC MAPPING TABLE:
+--------------------------------------------------------------------------------------------------------------
+NIC    mlx5     Interface            Speed        Type     GPU    Status   Purpose
+--------------------------------------------------------------------------------------------------------------
+NIC0   mlx5_0   enp26s0np0           400G         E/W      GPU0   ✅ Up     Inter-node RDMA
+NIC1   mlx5_1   bond0                100G*        N/S      GPU0   ✅ Up     Front-end (bonded)
+NIC2   mlx5_2   bond0                100G*        N/S      GPU0   ✅ Up     Front-end (bonded)
+NIC3   mlx5_3   enp60s0np0           400G         E/W      GPU1   ✅ Up     Inter-node RDMA
+NIC4   mlx5_4   enp77s0np0           400G         E/W      GPU2   ✅ Up     Inter-node RDMA
+NIC5   mlx5_5   enp94s0np0           400G         E/W      GPU3   ❌ Down   Inter-node RDMA
+NIC6   mlx5_6   enp156s0np0          400G         E/W      GPU4   ✅ Up     Inter-node RDMA
+NIC7   mlx5_7   bond0                100G*        N/S      GPU4   ✅ Up     Front-end (bonded)
+NIC8   mlx5_8   bond0                100G*        N/S      GPU4   ✅ Up     Front-end (bonded)
+NIC9   mlx5_9   enp188s0np0          400G         E/W      GPU5   ✅ Up     Inter-node RDMA
+NIC10  mlx5_10  enp204s0np0          400G         E/W      GPU6   ✅ Up     Inter-node RDMA
+NIC11  mlx5_11  enp220s0np0          400G         E/W      GPU7   ✅ Up     Inter-node RDMA
+
+* bond0 members contribute 100G each to 400G total aggregate
+
+🎯 OPTIMAL GPU-RoCE MAPPINGS by Use Case:
+------------------------------------------------------------
+
+📡 FOR FRONT-END/CLIENT TRAFFIC (N/S):
+GPU0 -> bond0 (mlx5_1,mlx5_2) = 200G of 400G bond
+GPU4 -> bond0 (mlx5_7,mlx5_8) = 200G of 400G bond
+Note: GPU0 and GPU4 share the 400G bond0 interface
+
+🔄 FOR INTER-NODE GPU COMMUNICATION (E/W):
+GPU0 -> NIC0  -> mlx5_0 (enp26s0np0) = 400G dedicated
+GPU1 -> NIC3  -> mlx5_3 (enp60s0np0) = 400G dedicated
+GPU2 -> NIC4  -> mlx5_4 (enp77s0np0) = 400G dedicated
+GPU3 -> NIC5  -> mlx5_5 (enp94s0np0) = 400G dedicated (DOWN)
+GPU4 -> NIC6  -> mlx5_6 (enp156s0np0) = 400G dedicated
+GPU5 -> NIC9  -> mlx5_9 (enp188s0np0) = 400G dedicated
+GPU6 -> NIC10 -> mlx5_10 (enp204s0np0) = 400G dedicated
+GPU7 -> NIC11 -> mlx5_11 (enp220s0np0) = 400G dedicated
+
+🚀 CONFIGURATION EXAMPLES:
+------------------------------------------------------------
+
+# Multi-node training (E/W communication):
+export CUDA_VISIBLE_DEVICES=0,1,2,4,5,6,7
+export NCCL_IB_HCA=mlx5_0,mlx5_3,mlx5_4,mlx5_6,mlx5_9,mlx5_10,mlx5_11
+# Each GPU gets 400G dedicated E/W bandwidth
+
+# Front-end serving with GPU0 and GPU4:
+export CUDA_VISIBLE_DEVICES=0,4
+export NCCL_IB_HCA=mlx5_1,mlx5_2,mlx5_7,mlx5_8
+# Uses full 400G bond0 for front-end traffic
+
+# Mixed workload (E/W + N/S):
+# GPU0: E/W communication
+export NCCL_IB_HCA=mlx5_0  # 400G E/W
+# Separate process for front-end on same GPU0:
+# Use mlx5_1,mlx5_2 for N/S traffic (200G of bond)
+
+⚠️  IMPORTANT NOTES:
+------------------------------------------------------------
+1. ALL interfaces are 400G capable (confirmed)
+2. bond0 = 4x100G = 400G aggregate for N/S traffic
+3. E/W interfaces are 400G each for inter-node GPU communication
+4. GPU3's interface (mlx5_5) is DOWN - needs investigation
+5. GPU0 and GPU4 have both N/S (bond0) and E/W (dedicated) access
+6. For maximum performance, separate N/S and E/W traffic

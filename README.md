@@ -4,18 +4,18 @@ This guide provides comprehensive methods to check GPU to RoCE (RDMA over Conver
 
 ## 🛠️ Available Tools
 
-| Tool | Purpose | Output |
-|------|---------|--------|
-| `complete_gpu_roce_mapping.py` | Single-node GPU-RoCE analysis | Complete mapping table with N/S vs E/W classification |
-| `inter_node_gpu_mapping.py` | Multi-node cluster analysis | Inter-node GPU communication paths and NCCL config |
+| Tool | Purpose | Output Example |
+|------|---------|----------------|
+| `intra_node_gpu_mapping.py` | Single-node GPU-RoCE analysis | [`intra_node_output_example.txt`](intra_node_output_example.txt) |
+| `inter_node_gpu_mapping.py` | Multi-node cluster analysis | [`inter_node_output_example.txt`](inter_node_output_example.txt) |
 
 ## 🚀 Quick Start
 
 ```bash
-# Single-node analysis
-python3 complete_gpu_roce_mapping.py
+# Intra-node (single-node) analysis
+python3 intra_node_gpu_mapping.py
 
-# Multi-node analysis (specify remote node hostname/IP)
+# Inter-node (multi-node) analysis - specify remote node hostname/IP
 python3 inter_node_gpu_mapping.py <remote_node>
 
 # Examples:
@@ -167,19 +167,20 @@ From your topology analysis:
 
 ## Using the Provided Tools
 
-### 1. Single-Node GPU-RoCE Analysis
+### 1. Intra-Node (Single-Node) GPU-RoCE Analysis
 ```bash
 # Complete single-node analysis with N/S vs E/W classification
-python3 complete_gpu_roce_mapping.py
+python3 intra_node_gpu_mapping.py
 
 # Shows:
 # - Complete NIC mapping table with GPU assignments
 # - N/S (front-end) vs E/W (backend) interface classification  
 # - Optimal GPU-RoCE pairings for different use cases
 # - NCCL configuration examples
+# - See example output: intra_node_output_example.txt
 ```
 
-### 2. Multi-Node GPU Communication Analysis
+### 2. Inter-Node (Multi-Node) GPU Communication Analysis
 ```bash
 # Complete inter-node GPU-to-GPU communication mapping
 python3 inter_node_gpu_mapping.py <remote_node>
@@ -195,6 +196,7 @@ python3 inter_node_gpu_mapping.py node2 --test-ssh    # Test SSH first
 # - Distributed training configuration with NCCL settings
 # - Bandwidth analysis and connectivity testing commands
 # - Status indicators for working/failed connections
+# - See example output: inter_node_output_example.txt
 ```
 
 ## Best Practices for GPU-RoCE Mapping
@@ -327,3 +329,19 @@ This configuration is optimized for:
 - **Network connectivity** on both management (bond0) and RDMA (E/W) networks
 
 For optimal performance, ensure your applications are configured to use the recommended GPU-RoCE mappings identified by the analysis tools.
+
+## 📋 Output Examples
+
+This repository includes real output examples from both tools:
+
+- **[`intra_node_output_example.txt`](intra_node_output_example.txt)**: Complete single-node GPU-RoCE mapping output
+  - Shows the complete NIC mapping table with GPU assignments
+  - N/S vs E/W interface classification
+  - Configuration examples for different use cases
+
+- **[`inter_node_output_example.txt`](inter_node_output_example.txt)**: Multi-node GPU communication mapping output
+  - Inter-node GPU communication paths (GPU0 ↔ GPU0, GPU1 ↔ GPU1, etc.)
+  - NCCL configuration for distributed training
+  - Bandwidth analysis and connectivity status
+
+These examples demonstrate the tools' output format and help you understand what to expect when running them on your own cluster.
