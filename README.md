@@ -8,7 +8,6 @@ This guide provides comprehensive methods to check GPU to RoCE (RDMA over Conver
 |------|---------|--------|
 | `complete_gpu_roce_mapping.py` | Single-node GPU-RoCE analysis | Complete mapping table with N/S vs E/W classification |
 | `inter_node_gpu_mapping.py` | Multi-node cluster analysis | Inter-node GPU communication paths and NCCL config |
-| `simple_inter_node_view.py` | Quick multi-node overview | Visual Node1 ↔ Node2 connection status |
 
 ## 🚀 Quick Start
 
@@ -16,11 +15,16 @@ This guide provides comprehensive methods to check GPU to RoCE (RDMA over Conver
 # Single-node analysis
 python3 complete_gpu_roce_mapping.py
 
-# Multi-node analysis (requires SSH to remote nodes)
-python3 inter_node_gpu_mapping.py
+# Multi-node analysis (specify remote node hostname/IP)
+python3 inter_node_gpu_mapping.py <remote_node>
 
-# Quick visual overview
-python3 simple_inter_node_view.py
+# Examples:
+python3 inter_node_gpu_mapping.py am4g2r32bm1
+python3 inter_node_gpu_mapping.py 10.45.170.79
+python3 inter_node_gpu_mapping.py node2.cluster.local
+
+# Test SSH connectivity first (optional)
+python3 inter_node_gpu_mapping.py <remote_node> --test-ssh
 ```
 
 ## Quick Reference Commands
@@ -178,24 +182,19 @@ python3 complete_gpu_roce_mapping.py
 ### 2. Multi-Node GPU Communication Analysis
 ```bash
 # Complete inter-node GPU-to-GPU communication mapping
-python3 inter_node_gpu_mapping.py
+python3 inter_node_gpu_mapping.py <remote_node>
+
+# Examples:
+python3 inter_node_gpu_mapping.py am4g2r32bm1          # By hostname
+python3 inter_node_gpu_mapping.py 10.45.170.79        # By IP address
+python3 inter_node_gpu_mapping.py node2 --test-ssh    # Test SSH first
 
 # Shows:
-# - Inter-node GPU communication paths
+# - Inter-node GPU communication paths (Node1 GPU ↔ Node2 GPU)
 # - Remote node connectivity via SSH
-# - Distributed training configuration
-# - Bandwidth analysis and connectivity testing
-```
-
-### 3. Quick Multi-Node Visual Overview
-```bash
-# Simple visual representation of inter-node connections
-python3 simple_inter_node_view.py
-
-# Shows:
-# - Clean Node1 GPU ↔ Node2 GPU connection paths
+# - Distributed training configuration with NCCL settings
+# - Bandwidth analysis and connectivity testing commands
 # - Status indicators for working/failed connections
-# - Quick bandwidth and connectivity summary
 ```
 
 ## Best Practices for GPU-RoCE Mapping
@@ -285,11 +284,11 @@ This toolkit supports mapping GPU-to-GPU communication paths between cluster nod
 
 ### Example Multi-Node Setup
 ```bash
-# Analyze inter-node connectivity
-python3 inter_node_gpu_mapping.py
+# Analyze inter-node connectivity (specify remote node)
+python3 inter_node_gpu_mapping.py am4g2r32bm1
 
-# Quick visual overview
-python3 simple_inter_node_view.py
+# Test connectivity first if needed
+python3 inter_node_gpu_mapping.py 10.45.170.79 --test-ssh
 ```
 
 **Typical Output:**

@@ -9,11 +9,13 @@ showing the complete E/W (East/West) RDMA connectivity for distributed training.
 import subprocess
 import json
 import sys
+import argparse
+import socket
 from collections import defaultdict
 
 class InterNodeGPUMapper:
-    def __init__(self, local_node="am4g2r31bm1", remote_node="am4g2r32bm1"):
-        self.local_node = local_node
+    def __init__(self, remote_node):
+        self.local_node = socket.gethostname()
         self.remote_node = remote_node
         
     def get_local_node_info(self):
@@ -230,7 +232,40 @@ class InterNodeGPUMapper:
         print(f"ibv_rc_pingpong -d mlx5_0 -g 0 {connectivity['local_bond0'].split('/')[0] if connectivity else '10.45.170.76'}")
 
 def main():
-    mapper = InterNodeGPUMapper()
+    parser = argparse.ArgumentParser(
+        description='Inter-Node GPU-to-GPU Communication Mapping',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  python3 inter_node_gpu_mapping.py am4g2r32bm1
+  python3 inter_node_gpu_mapping.py 10.45.170.79
+  python3 inter_node_gpu_mapping.py node2.cluster.local
+        '''
+    )
+    parser.add_argument('remote_node', 
+                       help='Hostname or IP address of the remote node')
+    parser.add_argument('--test-ssh', action='store_true',
+                       help='Test SSH connectivity before running analysis')
+    
+    args = parser.parse_args()
+    
+    # Test SSH connectivity if requested
+    if args.test_ssh:
+        print(f"Testing SSH connectivity to {args.remote_node}...")
+        try:
+            result = subprocess.run(['ssh', '-o', 'ConnectTimeout=5', 
+                                   args.remote_node, 'echo "SSH test successful"'], 
+                                  capture_output=True, text=True, check=True)
+            print(f"✅ SSH connection successful: {result.stdout.strip()}")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ SSH connection failed: {e}")
+            print("Please ensure:")
+            print("  1. Remote node is accessible")
+            print("  2. SSH is configured (preferably passwordless)")
+            print("  3. You have access to run nvidia-smi and ibdev2netdev on remote node")
+            sys.exit(1)
+    
+    mapper = InterNodeGPUMapper(args.remote_node)
     mapper.print_inter_node_mapping()
 
 if __name__ == '__main__':
