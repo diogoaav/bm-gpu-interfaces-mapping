@@ -1,6 +1,27 @@
 # GPU to RoCE Interface Mapping Guide
 
-This guide provides comprehensive methods to check GPU to RoCE (RDMA over Converged Ethernet) interface mapping on your system.
+This guide provides comprehensive methods to check GPU to RoCE (RDMA over Converged Ethernet) interface mapping on your system, including both single-node analysis and multi-node cluster communication mapping.
+
+## 🛠️ Available Tools
+
+| Tool | Purpose | Output |
+|------|---------|--------|
+| `complete_gpu_roce_mapping.py` | Single-node GPU-RoCE analysis | Complete mapping table with N/S vs E/W classification |
+| `inter_node_gpu_mapping.py` | Multi-node cluster analysis | Inter-node GPU communication paths and NCCL config |
+| `simple_inter_node_view.py` | Quick multi-node overview | Visual Node1 ↔ Node2 connection status |
+
+## 🚀 Quick Start
+
+```bash
+# Single-node analysis
+python3 complete_gpu_roce_mapping.py
+
+# Multi-node analysis (requires SSH to remote nodes)
+python3 inter_node_gpu_mapping.py
+
+# Quick visual overview
+python3 simple_inter_node_view.py
+```
 
 ## Quick Reference Commands
 
@@ -142,28 +163,39 @@ From your topology analysis:
 
 ## Using the Provided Tools
 
-### 1. Comprehensive Analysis Tool
+### 1. Single-Node GPU-RoCE Analysis
 ```bash
-# Run full analysis
-python3 gpu_roce_mapping.py
+# Complete single-node analysis with N/S vs E/W classification
+python3 complete_gpu_roce_mapping.py
 
-# Get JSON output for scripting
-python3 gpu_roce_mapping.py --json
-
-# Check specific GPU
-python3 gpu_roce_mapping.py --gpu 0
+# Shows:
+# - Complete NIC mapping table with GPU assignments
+# - N/S (front-end) vs E/W (backend) interface classification  
+# - Optimal GPU-RoCE pairings for different use cases
+# - NCCL configuration examples
 ```
 
-### 2. Quick Check Script
+### 2. Multi-Node GPU Communication Analysis
 ```bash
-# Show everything
-./quick_gpu_roce_check.sh
+# Complete inter-node GPU-to-GPU communication mapping
+python3 inter_node_gpu_mapping.py
 
-# Show specific information
-./quick_gpu_roce_check.sh topo      # Topology only
-./quick_gpu_roce_check.sh rdma      # RDMA devices only
-./quick_gpu_roce_check.sh roce      # RoCE capabilities
-./quick_gpu_roce_check.sh optimal   # Recommendations
+# Shows:
+# - Inter-node GPU communication paths
+# - Remote node connectivity via SSH
+# - Distributed training configuration
+# - Bandwidth analysis and connectivity testing
+```
+
+### 3. Quick Multi-Node Visual Overview
+```bash
+# Simple visual representation of inter-node connections
+python3 simple_inter_node_view.py
+
+# Shows:
+# - Clean Node1 GPU ↔ Node2 GPU connection paths
+# - Status indicators for working/failed connections
+# - Quick bandwidth and connectivity summary
 ```
 
 ## Best Practices for GPU-RoCE Mapping
@@ -174,13 +206,38 @@ python3 gpu_roce_mapping.py --gpu 0
 - **Load balancing**: Distribute traffic across multiple RoCE interfaces
 
 ### 2. Application Configuration
-```bash
-# Set CUDA device and corresponding RoCE interface
-export CUDA_VISIBLE_DEVICES=0
-export NCCL_IB_HCA=mlx5_0,mlx5_1,mlx5_2  # Use GPUs with PIX connections
 
-# For multi-GPU applications
-export NCCL_TOPO_FILE=/path/to/topology.xml  # Custom topology if needed
+#### Single-Node Training:
+```bash
+# Use E/W interfaces for maximum bandwidth
+export CUDA_VISIBLE_DEVICES=0,1,2,4,5,6,7  # Skip GPU3 (interface DOWN)
+export NCCL_IB_HCA=mlx5_0,mlx5_3,mlx5_4,mlx5_6,mlx5_9,mlx5_10,mlx5_11
+```
+
+#### Multi-Node Distributed Training:
+```bash
+# Node 1 configuration:
+export CUDA_VISIBLE_DEVICES=0,1,2,4,5,6,7
+export NCCL_IB_HCA=mlx5_0,mlx5_3,mlx5_4,mlx5_6,mlx5_9,mlx5_10,mlx5_11
+export NCCL_SOCKET_IFNAME=bond0
+export MASTER_ADDR=10.45.170.76
+export WORLD_SIZE=14  # Total working GPUs across nodes
+export RANK=0
+
+# Node 2 configuration:
+export CUDA_VISIBLE_DEVICES=0,1,2,4,5,6,7
+export NCCL_IB_HCA=mlx5_0,mlx5_3,mlx5_4,mlx5_6,mlx5_9,mlx5_10,mlx5_11
+export NCCL_SOCKET_IFNAME=bond0
+export MASTER_ADDR=10.45.170.76
+export WORLD_SIZE=14
+export RANK=7
+```
+
+#### Front-End Serving (N/S Traffic):
+```bash
+# Use bond0 for high-bandwidth front-end traffic
+export CUDA_VISIBLE_DEVICES=0,4  # GPUs with bond0 access
+export NCCL_IB_HCA=mlx5_1,mlx5_2,mlx5_7,mlx5_8  # Full 400G bond
 ```
 
 ### 3. Monitoring and Validation
@@ -216,16 +273,58 @@ ibping -S -C mlx5_0    # Server side
 ibping -c 10 -C mlx5_1 <server_ip>  # Client side
 ```
 
+## Multi-Node Cluster Configuration
+
+### Inter-Node GPU Communication Paths
+This toolkit supports mapping GPU-to-GPU communication paths between cluster nodes. The inter-node analysis tools automatically discover and map:
+
+- **Direct E/W connections** between corresponding GPUs on different nodes
+- **SSH-based remote node discovery** for automatic topology mapping
+- **Bandwidth analysis** showing total inter-node communication capacity
+- **NCCL configuration** for distributed training across nodes
+
+### Example Multi-Node Setup
+```bash
+# Analyze inter-node connectivity
+python3 inter_node_gpu_mapping.py
+
+# Quick visual overview
+python3 simple_inter_node_view.py
+```
+
+**Typical Output:**
+```
+🟢 Node1 GPU0 - NIC0 - mlx5_0 (enp26s0np0) >>>>> Node2 GPU0 - NIC0 - mlx5_0 (enp26s0np0)
+🟢 Node1 GPU1 - NIC3 - mlx5_3 (enp60s0np0) >>>>> Node2 GPU1 - NIC3 - mlx5_3 (enp60s0np0)
+...
+🔴 Node1 GPU3 - NIC5 - mlx5_5 (enp94s0np0) >>>>> Node2 GPU3 - NIC5 - mlx5_5 (enp94s0np0)
+```
+
+### Performance Characteristics
+- **Working GPU pairs**: 7/8 (one interface DOWN on local node)
+- **Total inter-node bandwidth**: 2.8TB/s (7 × 400G bidirectional)
+- **Protocol**: RoCE v2 over 400G Ethernet
+- **Network separation**: E/W (GPU traffic) vs N/S (control/management)
+
 ## Hardware-Specific Notes
 
 Your system appears to be a high-performance GPU cluster with:
-- 8x NVIDIA H100 GPUs with NVLink
-- 12x Mellanox ConnectX RDMA-capable NICs
-- Multi-NUMA architecture
+- **8x NVIDIA H100 GPUs** with NVLink interconnects
+- **12x Mellanox ConnectX RDMA-capable NICs** (400G each)
+- **Multi-NUMA architecture** with optimal GPU-NIC affinity
+- **Bonded front-end interfaces** (4×100G = 400G aggregate)
+- **Dedicated E/W interfaces** (400G each for inter-node communication)
 
 This configuration is optimized for:
-- Large-scale distributed training
-- High-throughput computing
-- Multi-node RDMA communication
+- **Large-scale distributed training** across multiple nodes
+- **High-throughput computing** with dedicated RDMA paths  
+- **Separated traffic patterns** (N/S front-end vs E/W backend)
+- **Fault tolerance** with multiple interface options per GPU
+
+### Prerequisites for Multi-Node Analysis
+- **SSH access** to remote nodes (passwordless recommended)
+- **Consistent hardware** topology across nodes
+- **RDMA drivers** installed on all nodes (`rdma-core`, `ibverbs`)
+- **Network connectivity** on both management (bond0) and RDMA (E/W) networks
 
 For optimal performance, ensure your applications are configured to use the recommended GPU-RoCE mappings identified by the analysis tools.
